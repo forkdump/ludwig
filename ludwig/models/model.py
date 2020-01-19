@@ -62,7 +62,8 @@ from ludwig.utils.batcher import DistributedBatcher
 from ludwig.utils.data_utils import load_json, save_json
 from ludwig.utils.defaults import default_random_seed
 from ludwig.utils.defaults import default_training_params
-from ludwig.utils.math_utils import learning_rate_warmup
+from ludwig.utils.math_utils import learning_rate_warmup_distributed, \
+    learning_rate_warmup
 from ludwig.utils.misc import set_random_seed
 from ludwig.utils.misc import sum_dicts
 from ludwig.utils.tf_utils import get_tf_config
@@ -133,26 +134,26 @@ class Model:
         if self.horovod:
             self.horovod.init()
 
-        tf.reset_default_graph()
+        tf.compat.v1.reset_default_graph()
         graph = tf.Graph()
         with graph.as_default():
             # ================ Setup ================
-            tf.set_random_seed(random_seed)
+            tf.compat.v1.set_random_seed(random_seed)
 
             self.global_step = tf.Variable(0, trainable=False)
-            self.regularization_lambda = tf.placeholder(
+            self.regularization_lambda = tf.compat.v1.placeholder(
                 tf.float32,
                 name='regularization_lambda'
             )
             regularizer = regularizer_registry[training['regularizer']]
             self.regularizer = regularizer(self.regularization_lambda)
 
-            self.learning_rate = tf.placeholder(
+            self.learning_rate = tf.compat.v1.placeholder(
                 tf.float32,
                 name='learning_rate'
             )
-            self.dropout_rate = tf.placeholder(tf.float32, name='dropout_rate')
-            self.is_training = tf.placeholder(tf.bool, [], name='is_training')
+            self.dropout_rate = tf.compat.v1.placeholder(tf.float32, name='dropout_rate')
+            self.is_training = tf.compat.v1.placeholder(tf.bool, [], name='is_training')
 
             # ================ Inputs ================
             feature_encodings = build_inputs(
@@ -205,19 +206,19 @@ class Model:
                 self.horovod
             )
 
-            tf.summary.scalar('train_reg_mean_loss', self.train_reg_mean_loss)
+            tf.compat.v1.summary.scalar('train_reg_mean_loss', self.train_reg_mean_loss)
 
-            self.merged_summary = tf.summary.merge_all()
+            self.merged_summary = tf.compat.v1.summary.merge_all()
             self.graph = graph
-            self.graph_initialize = tf.global_variables_initializer()
+            self.graph_initialize = tf.compat.v1.global_variables_initializer()
             if self.horovod:
                 self.broadcast_op = self.horovod.broadcast_global_variables(0)
-            self.saver = tf.train.Saver()
+            self.saver = tf.compat.v1.train.Saver()
 
     def initialize_session(self, gpus=None, gpu_fraction=1):
         if self.session is None:
 
-            self.session = tf.Session(
+            self.session = tf.compat.v1.Session(
                 config=get_tf_config(gpus, gpu_fraction, self.horovod),
                 graph=self.graph
             )
@@ -286,7 +287,7 @@ class Model:
             increase_batch_size_on_plateau_patience=5,
             increase_batch_size_on_plateau_rate=2,
             increase_batch_size_on_plateau_max=512,
-            learning_rate_warmup_epochs=5,  # used when training with Horovod
+            learning_rate_warmup_epochs=1,
             resume=False,
             skip_save_model=False,
             skip_save_progress=False,
@@ -398,7 +399,8 @@ class Model:
             learning_rate *= self.horovod.size()
 
         # ====== Setup file names =======
-        os.makedirs(save_path, exist_ok=True)
+        if is_on_master():
+            os.makedirs(save_path, exist_ok=True)
         model_weights_path = os.path.join(save_path, MODEL_WEIGHTS_FILE_NAME)
         model_weights_progress_path = os.path.join(
             save_path,
@@ -418,7 +420,7 @@ class Model:
         train_writer = None
         if is_on_master():
             if not skip_save_log:
-                train_writer = tf.summary.FileWriter(
+                train_writer = tf.compat.v1.summary.FileWriter(
                     os.path.join(save_path, 'log', 'train'),
                     session.graph
                 )
@@ -505,7 +507,7 @@ class Model:
                 batch = batcher.next_batch()
 
                 if self.horovod:
-                    current_learning_rate = learning_rate_warmup(
+                    current_learning_rate = learning_rate_warmup_distributed(
                         progress_tracker.learning_rate,
                         progress_tracker.epoch,
                         learning_rate_warmup_epochs,
@@ -514,7 +516,13 @@ class Model:
                         batcher.steps_per_epoch
                     ) * self.horovod.size()
                 else:
-                    current_learning_rate = progress_tracker.learning_rate
+                    current_learning_rate = learning_rate_warmup(
+                        progress_tracker.learning_rate,
+                        progress_tracker.epoch,
+                        learning_rate_warmup_epochs,
+                        batcher.step,
+                        batcher.steps_per_epoch
+                    )
 
                 readout_nodes = {'optimize': self.optimize}
                 if not skip_save_log:
@@ -1355,7 +1363,7 @@ class Model:
                     input_tensors, output_tensors)
             },
             strip_default_attrs=True,
-            saver=self.model.saver,
+            saver=self.saver,
         )
         builder.save()
 

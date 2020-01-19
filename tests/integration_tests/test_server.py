@@ -13,27 +13,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
+import logging
+import os
 import shutil
+import sys
 
 from ludwig.api import LudwigModel
-from ludwig.utils.data_utils import read_csv
-from tests.integration_tests.utils import ENCODERS
-from tests.integration_tests.utils import image_feature
-from tests.integration_tests.utils import text_feature
-from tests.integration_tests.utils import categorical_feature
-from tests.integration_tests.utils import numerical_feature
-from tests.integration_tests.utils import generate_data
-from tests.integration_tests.utils import sequence_feature
-from tests.integration_tests.utils import random_string
-
-
-# The following imports are pytest fixtures, required for running the tests
-from tests.fixtures.filenames import csv_filename
 from ludwig.serve import server, ALL_FEATURES_PRESENT_ERROR
-from starlette.testclient import TestClient
-from starlette.datastructures import UploadFile
-import os
+from ludwig.utils.data_utils import read_csv
+from tests.integration_tests.utils import category_feature
+from tests.integration_tests.utils import generate_data
+from tests.integration_tests.utils import image_feature
+from tests.integration_tests.utils import numerical_feature
+from tests.integration_tests.utils import text_feature
+
+logger = logging.getLogger(__name__)
+
+try:
+    from starlette.testclient import TestClient
+except ImportError:
+    logger.error(
+        ' fastapi and other serving dependencies are not installed. '
+        'In order to install all serving dependencies run '
+        'pip install ludwig[serve]'
+    )
+    sys.exit(-1)
 
 
 def train_model(input_features, output_features, data_csv):
@@ -111,7 +115,7 @@ def convert_to_form(entry):
 
 
 def test_server_integration(csv_filename):
-     # Image Inputs
+    # Image Inputs
     image_dest_folder = os.path.join(os.getcwd(), 'generated_images')
 
     # Resnet encoder
@@ -132,7 +136,7 @@ def test_server_integration(csv_filename):
         numerical_feature(normalization='zscore')
     ]
     output_features = [
-        categorical_feature(vocab_size=2, reduce_input='sum'),
+        category_feature(vocab_size=2, reduce_input='sum'),
         numerical_feature()
     ]
 
@@ -141,6 +145,9 @@ def test_server_integration(csv_filename):
 
     app = server(model)
     client = TestClient(app)
+    response = client.get('/')
+    assert response.status_code == 200
+
     response = client.post('/predict')
     assert response.json() == ALL_FEATURES_PRESENT_ERROR
 

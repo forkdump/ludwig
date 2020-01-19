@@ -15,8 +15,8 @@
 # limitations under the License.
 # ==============================================================================
 import logging
-import math
 
+import math
 import tensorflow as tf
 
 from ludwig.models.modules.embedding_modules import Embed
@@ -197,7 +197,7 @@ class DateEmbed:
             :type is_training: Tensor
         """
         # ================ Embeddings ================
-        with tf.variable_scope('year', reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope('year', reuse=tf.compat.v1.AUTO_REUSE):
             scaled_year = self.year_fc(
                 tf.cast(input_vector[:, 0:1], tf.float32),
                 1,
@@ -205,49 +205,49 @@ class DateEmbed:
                 dropout_rate,
                 is_training=is_training
             )
-        with tf.variable_scope('month', reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope('month', reuse=tf.compat.v1.AUTO_REUSE):
             embedded_month, _ = self.embed_month(
                 input_vector[:, 1] - 1,
                 regularizer,
                 dropout_rate,
                 is_training=is_training
             )
-        with tf.variable_scope('day', reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope('day', reuse=tf.compat.v1.AUTO_REUSE):
             embedded_day, _ = self.embed_day(
                 input_vector[:, 2] - 1,
                 regularizer,
                 dropout_rate,
                 is_training=is_training
             )
-        with tf.variable_scope('weekday', reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope('weekday', reuse=tf.compat.v1.AUTO_REUSE):
             embedded_weekday, _ = self.embed_weekday(
                 input_vector[:, 3],
                 regularizer,
                 dropout_rate,
                 is_training=is_training
             )
-        with tf.variable_scope('yearday', reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope('yearday', reuse=tf.compat.v1.AUTO_REUSE):
             embedded_yearday, _ = self.embed_yearday(
                 input_vector[:, 4] - 1,
                 regularizer,
                 dropout_rate,
                 is_training=is_training
             )
-        with tf.variable_scope('hour', reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope('hour', reuse=tf.compat.v1.AUTO_REUSE):
             embedded_hour, _ = self.embed_hour(
                 input_vector[:, 5],
                 regularizer,
                 dropout_rate,
                 is_training=is_training
             )
-        with tf.variable_scope('minute', reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope('minute', reuse=tf.compat.v1.AUTO_REUSE):
             embedded_minute, _ = self.embed_minute(
                 input_vector[:, 6],
                 regularizer,
                 dropout_rate,
                 is_training=is_training
             )
-        with tf.variable_scope('second', reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope('second', reuse=tf.compat.v1.AUTO_REUSE):
             embedded_second, _ = self.embed_second(
                 input_vector[:, 7],
                 regularizer,
@@ -255,10 +255,16 @@ class DateEmbed:
                 is_training=is_training
             )
 
+        periodic_second_of_day = tf.sin(
+            tf.cast(input_vector[:, 8:9], dtype=tf.float32)
+            * (2 * math.pi / 86400)
+        )
+
         hidden = tf.concat(
             [scaled_year, embedded_month, embedded_day,
              embedded_weekday, embedded_yearday,
-             embedded_hour, embedded_minute, embedded_second],
+             embedded_hour, embedded_minute, embedded_second,
+             periodic_second_of_day],
             axis=1
         )
 
@@ -386,11 +392,15 @@ class DateWave:
         periodic_hour = tf.sin(input_vector[:, 5:6] * (2 * math.pi / 24))
         periodic_minute = tf.sin(input_vector[:, 6:7] * (2 * math.pi / 60))
         periodic_second = tf.sin(input_vector[:, 7:8] * (2 * math.pi / 60))
+        periodic_second_of_day = tf.sin(
+            input_vector[:, 8:9] * (2 * math.pi / 86400)
+        )
 
         hidden = tf.concat(
             [scaled_year, periodic_month, periodic_day,
              periodic_weekday, periodic_yearday,
-             periodic_hour, periodic_minute, periodic_second],
+             periodic_hour, periodic_minute, periodic_second,
+             periodic_second_of_day],
             axis=1)
 
         # ================ FC Stack ================

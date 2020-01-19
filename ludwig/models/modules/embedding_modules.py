@@ -41,7 +41,7 @@ def embedding_matrix(
                 pretrained_embeddings, vocab)
             if embeddings_matrix.shape[-1] != embedding_size:
                 raise ValueError(
-                    'The size of the pretrained embedding size is {}, '
+                    'The size of the pretrained embeddings is {}, '
                     'but the specified embedding_size is {}. '
                     'Please change the embedding_size accordingly.'.format(
                         embeddings_matrix.shape[-1],
@@ -64,14 +64,14 @@ def embedding_matrix(
                     {'type': 'uniform', 'minval': -1.0, 'maxval': 1.0})
             initializer_obj = initializer_obj_ref([vocab_size, embedding_size])
 
-        embeddings = tf.get_variable('embeddings',
+        embeddings = tf.compat.v1.get_variable('embeddings',
                                      initializer=initializer_obj,
                                      trainable=embeddings_trainable,
                                      regularizer=regularizer)
 
     elif representation == 'sparse':
         embedding_size = vocab_size
-        embeddings = tf.get_variable('embeddings',
+        embeddings = tf.compat.v1.get_variable('embeddings',
                                      initializer=get_initializer('identity')(
                                          [vocab_size, embedding_size]),
                                      trainable=False)

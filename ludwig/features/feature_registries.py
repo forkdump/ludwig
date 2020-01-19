@@ -24,7 +24,9 @@ from ludwig.constants import SEQUENCE
 from ludwig.constants import SET
 from ludwig.constants import TEXT
 from ludwig.constants import TIMESERIES
+from ludwig.constants import VECTOR
 from ludwig.features.bag_feature import BagBaseFeature
+from ludwig.constants import AUDIO
 from ludwig.features.bag_feature import BagInputFeature
 from ludwig.features.binary_feature import BinaryBaseFeature
 from ludwig.features.binary_feature import BinaryInputFeature
@@ -37,6 +39,8 @@ from ludwig.features.h3_feature import H3BaseFeature, H3InputFeature
 from ludwig.features.image_feature import ImageBaseFeature
 from ludwig.features.image_feature import ImageInputFeature
 from ludwig.features.numerical_feature import NumericalBaseFeature
+from ludwig.features.audio_feature import AudioBaseFeature
+from ludwig.features.audio_feature import AudioInputFeature
 from ludwig.features.numerical_feature import NumericalInputFeature
 from ludwig.features.numerical_feature import NumericalOutputFeature
 from ludwig.features.sequence_feature import SequenceBaseFeature
@@ -50,6 +54,9 @@ from ludwig.features.text_feature import TextInputFeature
 from ludwig.features.text_feature import TextOutputFeature
 from ludwig.features.timeseries_feature import TimeseriesBaseFeature
 from ludwig.features.timeseries_feature import TimeseriesInputFeature
+from ludwig.features.vector_feature import VectorBaseFeature
+from ludwig.features.vector_feature import VectorInputFeature
+from ludwig.features.vector_feature import VectorOutputFeature
 
 base_type_registry = {
     TEXT: TextBaseFeature,
@@ -61,8 +68,10 @@ base_type_registry = {
     SEQUENCE: SequenceBaseFeature,
     TIMESERIES: TimeseriesBaseFeature,
     IMAGE: ImageBaseFeature,
+    AUDIO: AudioBaseFeature,
     H3: H3BaseFeature,
     DATE: DateBaseFeature,
+    VECTOR: VectorBaseFeature
 }
 input_type_registry = {
     TEXT: TextInputFeature,
@@ -72,10 +81,12 @@ input_type_registry = {
     SET: SetInputFeature,
     SEQUENCE: SequenceInputFeature,
     IMAGE: ImageInputFeature,
+    AUDIO: AudioInputFeature,
     TIMESERIES: TimeseriesInputFeature,
     BAG: BagInputFeature,
     H3: H3InputFeature,
     DATE: DateInputFeature,
+    VECTOR: VectorInputFeature
 }
 output_type_registry = {
     CATEGORY: CategoryOutputFeature,
@@ -84,4 +95,5 @@ output_type_registry = {
     SEQUENCE: SequenceOutputFeature,
     SET: SetOutputFeature,
     TEXT: TextOutputFeature,
+    VECTOR: VectorOutputFeature
 }

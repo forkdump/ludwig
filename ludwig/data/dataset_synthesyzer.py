@@ -15,18 +15,22 @@
 # limitations under the License.
 # ==============================================================================
 import argparse
+import logging
 import os
 import random
 import string
+import sys
 import uuid
 
 import numpy as np
 import yaml
-from skimage.io import imsave
 
+from ludwig.constants import VECTOR
 from ludwig.utils.data_utils import save_csv
 from ludwig.utils.h3_util import components_to_h3
 from ludwig.utils.misc import get_from_registry
+
+logger = logging.getLogger(__name__)
 
 letters = string.ascii_letters
 
@@ -110,8 +114,10 @@ parameters_builders_registry = {
     'sequence': assign_vocab,
     'timeseries': return_none,
     'image': return_none,
+    'audio': return_none,
     'date': return_none,
-    'h3': return_none
+    'h3': return_none,
+    VECTOR: return_none
 }
 
 
@@ -206,7 +212,51 @@ def generate_timeseries(feature):
     return ' '.join(series)
 
 
+def generate_audio(feature):
+    try:
+        import soundfile
+    except ImportError:
+        logger.error(
+            ' soundfile is not installed. '
+            'In order to install all audio feature dependencies run '
+            'pip install ludwig[audio]'
+        )
+        sys.exit(-1)
+
+    audio_length = feature['preprocessing']['audio_file_length_limit_in_s']
+    audio_dest_folder = feature['audio_dest_folder']
+    sampling_rate = 16000
+    num_samples = int(audio_length * sampling_rate)
+    audio = np.sin(np.arange(num_samples) / 100 * 2 * np.pi) * 2 * (
+            np.random.random(num_samples) - 0.5)
+    audio_filename = uuid.uuid4().hex[:10].upper() + '.wav'
+
+    try:
+        if not os.path.exists(audio_dest_folder):
+            os.makedirs(audio_dest_folder)
+
+        audio_dest_path = os.path.join(audio_dest_folder, audio_filename)
+        soundfile.write(audio_dest_path, audio, sampling_rate)
+
+    except IOError as e:
+        raise IOError(
+            'Unable to create a folder for audio or save audio to disk.'
+            '{0}'.format(e))
+
+    return audio_dest_path
+
+
 def generate_image(feature):
+    try:
+        from skimage.io import imsave
+    except ImportError:
+        logger.error(
+            ' scikit-image is not installed. '
+            'In order to install all image feature dependencies run '
+            'pip install ludwig[image]'
+        )
+        sys.exit(-1)
+
     # Read num_channels, width, height
     num_channels = feature['preprocessing']['num_channels']
     width = feature['preprocessing']['width']
@@ -228,7 +278,7 @@ def generate_image(feature):
     # Save the image to disk either in a specified location/new folder
     try:
         if not os.path.exists(image_dest_folder):
-            os.mkdir(image_dest_folder)
+            os.makedirs(image_dest_folder)
 
         image_dest_path = os.path.join(image_dest_folder, image_filename)
         imsave(image_dest_path, img.astype('uint8'))
@@ -281,6 +331,13 @@ def generate_h3(feature):
     return components_to_h3(h3_components)
 
 
+def generate_vector(feature):
+    # Space delimited string with floating point numbers
+    return ' '.join(
+        [str(100 * random.random()) for _ in range(feature['vector_size'])]
+    )
+
+
 generators_registry = {
     'category': generate_category,
     'text': generate_sequence,
@@ -291,8 +348,11 @@ generators_registry = {
     'sequence': generate_sequence,
     'timeseries': generate_timeseries,
     'image': generate_image,
+    'audio': generate_audio,
     'h3': generate_h3,
     'date': generate_datetime,
+    VECTOR: generate_vector
+
 }
 
 category_cycle = 0
